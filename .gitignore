@@ -1,0 +1,6 @@
+_out/
+dist/
+build/
+*.pyc
+_*/
+*.egg-info
