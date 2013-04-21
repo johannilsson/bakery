@@ -13,59 +13,10 @@ for templates,
 [YUI Compressor](http://yui.github.io/yuicompressor/) for CSS and
 JavaScript compression. [PIL](http://www.pythonware.com/products/pil/) for image manipulation. [YAML](http://www.yaml.org/) for configuration.
 
-## Setup
-
-Install bakery with the following command.
-
-	python setup.py install
-
-Once installed the command line tool `bakery` is available with the following
-commands.
-
-	$ bakery
-	Usage: bakery [options]
-
-	Options:
-  	  --version             show program's version number and exit
-  	  -h, --help            show this help message and exit
-      -c CONFIG, --config=CONFIG
-                            path to yaml configuration [default: config.yaml].
-      -s, --serve           start a webserver.
-      -p PORT, --port=PORT  set port for webserver [default: 8000].
-      --bootstrap           create a new site here.
-      --build               build this site.
-      --debug               set debug mode.
-      --no-compress         do not compress css and js.
-
-A `config.yml` is needed for each site a minimal config looks like this.
-
-    # Path to resources.
-    source_dir: site
-    # Path to where the site should be assembled
-    build_dir: _out
-    # Site context, this is passed to site and can be access through layouts.
-    site_context:
-    media_url: 'http://example.com/media'
-    # List of files to apply compression to. Basic regular expressions work
-    # too, e.g. *.css and *.js. Files ending with min.js or min.css are
-    # ingored. To not use compression, just remove compress or set it to
-    # False.
-    compress:
-      - application.js
-      - application.css
-
-Steps needed to create a new site, to be simplified.
-
-	mkdir example.com
-	cd example.com
-	mkdir source
-	vim config.yaml
-	bakery --bootstrap
-	bakery --serve
 
 ## Typography
 
-The following is automatically applied.
+The following transformations is automatically applied.
 
 * Three dots `...` into ...
 * Single quotes `'` into curly quotes ' 
@@ -152,7 +103,7 @@ the site. A simple version of such a layout could look like this.
   	<link href="/assets/css/application.css" rel="stylesheet">
   	<title>{{page.title}}</title>
   	{{& page.content}}
-	</html><
+	</html>
 
 The page content is rendered where the tag `{{& page.content}}` is. The
 `&` is important here to tell Mustache to un-escape the content. The
@@ -208,6 +159,56 @@ To show all images in the theo directory with the size medium:
 As shown in the example the size of the image is accessed by referencing
 the configured size name in the beginning. If we would have configured
 the name of the `medium` size to `m` instead we would have accessed it with `{{m_image_url}}`.
+
+## Installation & First steps
+
+Install bakery with the following command.
+
+	python setup.py install
+
+Once installed the command line tool `bakery` is available with the following
+commands.
+
+	$ bakery
+	Usage: bakery [options]
+
+	Options:
+      --version             show program's version number and exit
+      -h, --help            show this help message and exit
+      -c CONFIG, --config=CONFIG
+                            path to yaml configuration [default: config.yaml].
+      -s, --serve           start a webserver.
+      -p PORT, --port=PORT  set port for webserver [default: 8000].
+      --bootstrap           create a new site here.
+      --build               build this site.
+      --debug               set debug mode.
+      --no-compress         do not compress css and js.
+
+A `config.yml` is needed for each site, a minimal config looks like this.
+
+    # Path to resources.
+    source_dir: site
+    # Path to where the site should be assembled
+    build_dir: _out
+    # Site context, this is passed to site and can be access through layouts.
+    site_context:
+    media_url: 'http://example.com/media'
+    # List of files to apply compression to. Basic regular expressions work
+    # too, e.g. *.css and *.js. Files ending with min.js or min.css are
+    # ingored. To not use compression, just remove compress or set it to
+    # False.
+    compress:
+      - application.js
+      - application.css
+
+Steps needed to create a new site, to be simplified.
+
+	mkdir example.com
+	cd example.com
+	mkdir source
+	vim config.yaml
+	bakery --bootstrap
+	bakery --serve
 
 Cheers!<br>
 [Johan](http://johannilsson.com)
