@@ -1,6 +1,6 @@
 # Bakery
 
-## A "Lightweight & Hackable" static site generator --- in other words yet another static site generator.
+## A "Lightweight & Hackable" static site generator &#8211; in other words yet another static site generator.
 
 Bakery tries to makes it a little bit easier to create web sites while
 applying a few tricks.
@@ -18,11 +18,11 @@ JavaScript compression. [PIL](http://www.pythonware.com/products/pil/) for image
 
 The following transformations is automatically applied.
 
-* Three dots `...` into ...
-* Single quotes `'` into curly quotes ' 
-* Double quotes `"` into curly quotes "
-* Two dashes `--` into --
-* Three dashes `---` into ---
+* Three dots `...` into &#8230;
+* Single quotes `'` into curly quotes &#8217;
+* Double quotes `"` into curly quotes &#8221;
+* Two dashes `--` into &#8212;
+* Three dashes `---` into &#8211;
 
 Widows is prevented using Widon't by applying a `&nbsp;` between the
 two last words in common tags.
