@@ -4,7 +4,7 @@
 from __future__ import with_statement
 
 __author__ = 'Johan Nilsson'
-__version__ = '0.1.dev'
+__version__ = '0.2.dev'
 __license__ = 'MIT'
 
 import sys
@@ -36,6 +36,7 @@ except IOError:
     _stdout = lambda x: sys.stdout.write(x)
     _stderr = lambda x: sys.stderr.write(x)
 
+
 def mkdir_p(path):
     """ Create intermediate directories as required.
     """
@@ -44,11 +45,13 @@ def mkdir_p(path):
     except OSError as exc: # Python >2.5
         if exc.errno == errno.EEXIST:
             pass
-        else: raise
+        else:
+            raise
 
 # Helper to slugify paths.
 # http://flask.pocoo.org/snippets/5/
 _punct_re = re.compile(r'[\t !"#$%&\'()*\-<=>?@\[\\\]^_`{|},.]+')
+
 
 def slugify(text, delim=u'-'):
     """Generates an slightly worse ASCII-only slug."""
@@ -71,8 +74,8 @@ class Config(object):
     }
 
     def __init__(self, path=None, **config):
+        c = None
         if path is not None:
-            content = None
             with codecs.open(path, 'r', encoding='utf-8') as f:
                 content = f.read()
             c = yaml.load(content)
@@ -98,6 +101,7 @@ class Config(object):
         if self.build_dir is None:
             self.build_dir = os.getcwd() + '/_out'
 
+
 class Loader(object):
     """ Content and context loader for resources.
     """
@@ -111,7 +115,6 @@ class Loader(object):
         representing the context extracted from a yaml front matter if 
         present in the content.
         """
-        content = u''
         context = {}
         with codecs.open(self.source + path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -123,11 +126,47 @@ class Loader(object):
         return content, context
 
 
-class PageResource(object):
-    def __init__(self, config, source, context={}):
-        if not context: context = {}
+class Resource(object):
+    """ Base resource
+    """
+    def __init__(self, config, source):
         self.config = config
         self.source = source
+
+    def _clean_source(self):
+        """ Clears the first directory from the destination path.
+        """
+        i = self.source.find(os.sep) + 1
+        if i == 1:
+            i = self.source[i:].find(os.sep) + 1
+        return self.source[i:]
+
+    @property
+    def destination(self):
+        return self._clean_source()
+    # Alias url to destination
+    url = destination
+
+    @property
+    def belongs_to(self):
+        return os.path.basename(os.path.dirname(self.destination))
+
+    @property
+    def belongs_to_parent(self):
+        root, last = os.path.split(os.path.dirname(self.destination))
+        parent = os.path.basename(root)
+        if parent == "":
+            parent = None
+        return parent
+
+
+class PageResource(Resource):
+    def __init__(self, config, source, context=None):
+        super(PageResource, self).__init__(config, source)
+
+        if not context:
+            context = {}
+
         self.context = context
         self.id = hashlib.md5(self.source).hexdigest()
         self.layout_path = u'default.html'
@@ -139,14 +178,6 @@ class PageResource(object):
 
         if 'layout' in self.context:
             self.layout_path = self.context['layout']
-
-    def _make_destination(self):
-        ''' Clears the first directory from the destination path.
-        '''
-        i = self.source.find(os.sep) + 1
-        if i == 1:
-            i = self.source[i:].find(os.sep) + 1
-        return self.source[i:]
 
     @property
     def layout(self):
@@ -168,77 +199,31 @@ class PageResource(object):
 
     @property
     def destination(self):
-        root, ext = os.path.splitext(self._make_destination())
+        root, ext = os.path.splitext(self._clean_source())
         return root + u'.html'
-    # Alias url to destination
     url = destination
 
-    @property
-    def belongs_to_parent(self):
-        root, last = os.path.split(os.path.dirname(self.destination))
-        parent = os.path.basename(root)
-        if parent == "":
-            parent = None
-        return parent
-
-    @property
-    def belongs_to(self):
-        return os.path.basename(os.path.dirname(self.destination))
-
     def render(self, renderer, site_context):
-        part = renderer.render(self.content, self.context,
-                site=site_context)
+        part = renderer.render(self.content, self.context, site=site_context)
         part = markdown.markdown(part)
         part = typogrify.typogrify(part)
 
         page_context = {u'content': part}
         page_context.update(self.context)
 
-        page = renderer.render_path(self.layout, self.context,
-                page = page_context,
-                site=site_context
-        )
+        page = renderer.render_path(self.layout, self.context, page=page_context, site=site_context)
         return page
 
 
-class MediaResource(object):
+class MediaResource(Resource):
     """ A media resource
 
     This is a special type of resouce that group images into collections based
     on the directory they placed in.
     """
     def __init__(self, config, source):
-        self.config = config
-        self.source = source.replace(self.config.source_dir, '')
-
-    def _clean_source(self):
-        ''' Clears the first directory from the destination path.
-        '''
-        i = self.source.find(os.sep) + 1
-        if i == 1:
-            i = self.source[i:].find(os.sep) + 1
-        return self.source[i:]
-
-    @property
-    def destination(self):
-        #root, ext = os.path.splitext(self._make_destination())
-        #root, ext = os.path.splitext(self._make_destination())
-        #return root + ext
-        return self.source
-    # Alias url to destination
-    url = destination
-
-    @property
-    def belongs_to_parent(self):
-        root, last = os.path.split(os.path.dirname(self._clean_source()))
-        parent = os.path.basename(root)
-        if parent == "":
-            parent = None
-        return parent
-
-    @property
-    def belongs_to(self):
-        return os.path.basename(os.path.dirname(self._clean_source()))
+        super(MediaResource, self).__init__(config, source)
+        self.source = self.source.replace(self.config.source_dir, '')
 
     def get_image_url(self, size_name):
         root, ext = os.path.splitext(self.destination)
@@ -276,6 +261,7 @@ class MediaResource(object):
             setattr(self, '%s_image_url' % size_name, partial(self.get_image_url, size_name=size_name))
         return True
 
+
 class ResourceTree(dict):
     def __init__(self, nodes, **kwargs):
         dict.__init__(self, **kwargs)
@@ -285,21 +271,22 @@ class ResourceTree(dict):
     def build(self, tree, parent, nodes):
         if parent is not None:
             parent = parent.belongs_to
-        children  = [n for n in nodes if n.belongs_to_parent == parent]
+        children = [n for n in nodes if n.belongs_to_parent == parent]
         for child in children:
             if child.belongs_to not in tree:
-                #tree[child.belongs_to] = {u'list': set([])}
                 tree[child.belongs_to] = {u'list': []}
-            #tree[child.belongs_to][u'list'].add(child)
             if child not in tree[child.belongs_to][u'list']:
                 tree[child.belongs_to][u'list'].append(child)
                 # This key handling... must be able to simplify...
-                tree[child.belongs_to][u'list'] = sorted(tree[child.belongs_to][u'list'], key=lambda r: r.destination, reverse=True)
+                tree[child.belongs_to][u'list'] = sorted(
+                    tree[child.belongs_to][u'list'],
+                    key=lambda r: r.destination,
+                    reverse=True)
             self.build(tree[child.belongs_to], child, nodes)
 
     def all(self):
-        all = self._all(self, [])
-        return sorted(all, key=lambda r: r.destination, reverse=True)
+        a = self._all(self, [])
+        return sorted(a, key=lambda r: r.destination, reverse=True)
 
     def _all(self, d, l):
         for k, v in d.iteritems():
@@ -309,6 +296,7 @@ class ResourceTree(dict):
             if isinstance(v, dict):
                 self._all(v, l)
         return l
+
 
 class Site(object):
     """ Represent a Site to be built.
@@ -329,7 +317,7 @@ class Site(object):
                 self.config.source_dir + os.sep + self.config.paths['layouts'],
             ],
             file_extension='html',
-            file_encoding='utf-8', # TODO: should be package default, verify.
+            file_encoding='utf-8',
             string_encoding='utf-8'
         )
 
@@ -358,7 +346,11 @@ class Site(object):
             '*.txt',
         ]
 
-        excludes = [os.path.basename(self.config.build_dir), self.config.paths['layouts'], self.config.paths['media']]
+        excludes = [
+            os.path.basename(self.config.build_dir),
+            self.config.paths['layouts'],
+            self.config.paths['media']
+        ]
         for root, dirs, files in os.walk(self.config.source_dir, topdown=True):
             dirs[:] = [d for d in dirs if d not in excludes]
             for pat in page_includes:
@@ -371,7 +363,9 @@ class Site(object):
         self.context['articles'] = ResourceTree(self.articles)
 
         # TODO: Do these things in the loop above instead...
-        for root, dirs, files in os.walk(os.path.join(self.config.source_dir, self.config.paths['media']), topdown=True):
+        for root, dirs, files in os.walk(
+                os.path.join(self.config.source_dir,
+                             self.config.paths['media']), topdown=True):
             files[:] = [f for f in files if not f.startswith(u'.')]
             for f in files:
                 m = MediaResource(self.config, os.path.join(root, f))
@@ -396,7 +390,9 @@ class Site(object):
         copying of assets.
         """
         modified_files = []
-        for root, dirs, files in os.walk(os.path.join(self.config.source_dir, self.config.paths['assets']), topdown=True):
+        for root, dirs, files in os.walk(
+                os.path.join(self.config.source_dir,
+                             self.config.paths['assets']), topdown=True):
             for d in dirs:
                 src = os.path.join(root, d)
                 dst = os.path.join(self.config.build_dir, self.config.paths['assets'], d)
@@ -420,11 +416,11 @@ class Site(object):
         asset_dir = os.path.join(self.config.build_dir, self.config.paths['assets'])
         for root, dirs, files in os.walk(asset_dir, topdown=True):
             for d in dirs:
-                cmp = filecmp.dircmp(
+                compare = filecmp.dircmp(
                     os.path.join(self.config.source_dir, self.config.paths['assets'], d),
                     os.path.join(root, d)
                 )
-                for diff in cmp.right_only:
+                for diff in compare.right_only:
                     p = os.path.join(asset_dir, d, diff)
                     if os.path.isdir(p):
                         try:
@@ -442,11 +438,11 @@ class Site(object):
             import yuicompressor
             _stdout('** With compressing\n')
             for root, dirs, files in os.walk(self.config.build_dir + os.sep + self.config.paths['assets'], topdown=True):
-                 for pat in self.config.compress:
+                for pat in self.config.compress:
                     for f in fnmatch.filter(files, pat):
                         if not f.endswith('min.js') or not f.endswith('min.css'):
                             _stdout('>> {0}\n'.format(f))
-                            status = yuicompressor.run(
+                            yuicompressor.run(
                                 os.path.join(root, f),
                                 "-o", os.path.join(root, f)
                             )
@@ -473,11 +469,11 @@ class Site(object):
             _stdout('>> {0}\n'.format(r.destination))
             r.build(self.renderer, self.context)
 
-    def find_resource(self, id):
+    def find_resource(self, resource_id):
         """ Return an instance based on the id.
         """
         for r in self.resources:
-            if r.id == id:
+            if r.id == resource_id:
                 return r
         return None
 
@@ -497,7 +493,7 @@ class ResourceMonitor(threading.Thread):
         self.daemon = True
         self.paths = paths
         self.onchange = onchange
-        self.modified_paths =  {}
+        self.modified_paths = {}
 
     def diff(self, path):
         """ Check for modifications returns a dict of paths and times of change.
@@ -564,10 +560,8 @@ def serve(config_path, port=8000, **config):
     _stdout('Running webserver at 0.0.0.0:%s for %s\n' % (port, c.build_dir))
     _stdout('Type control-c to exit\n')
 
-    try:
-        os.chdir(c.build_dir)
-    except OSError, e:
-        mkdir_p(c.build_dir)
+    c.source_dir = os.path.abspath(c.source_dir)
+    mkdir_p(c.build_dir)
 
     import SimpleHTTPServer
     import SocketServer
@@ -588,12 +582,16 @@ def serve(config_path, port=8000, **config):
         _stdout('Rebuilding\n')
         for p in modified_paths:
             _stdout('Changed {0}\n'.format(p))
-        # TODO: Pass the modified paths.
+        # TODO: Pass the modified paths
         site.build()
 
     paths = [os.path.join(c.source_dir, p) for p in c.paths]
+
     monitor = ResourceMonitor(paths, rebuild)
     monitor.start()
+
+    # Run server from our build directory.
+    os.chdir(c.build_dir)
 
     try:
         server.serve_forever()
@@ -640,4 +638,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
