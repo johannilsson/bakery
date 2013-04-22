@@ -190,9 +190,9 @@ A `config.yml` is needed for each site, a minimal config looks like this.
     source_dir: site
     # Path to where the site should be assembled
     build_dir: _out
-    # Site context, this is passed to site and can be access through layouts.
+    # Site context, variables to be passed to site and can be access through layouts.
     site_context:
-    media_url: 'http://example.com/media'
+      media_url: 'http://example.com/media'
     # List of files to apply compression to. Basic regular expressions work
     # too, e.g. *.css and *.js. Files ending with min.js or min.css are
     # ingored. To not use compression, just remove compress or set it to
