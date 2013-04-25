@@ -13,6 +13,7 @@ setup(name='bakery',
         'PIL',
         'PyYAML',
         'pystache',
+        'smartypants',
         'yuicompressor'
       ],
       zip_safe=False,
