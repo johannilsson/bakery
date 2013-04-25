@@ -2,8 +2,8 @@
 
 ## A "Lightweight & Hackable" static site generator &#8211; in other words yet another static site generator.
 
-Bakery tries to makes it a little bit easier to create web sites while
-applying a few tricks.
+Bakery tries to make it a little bit easier to create web sites by applying
+a few tricks.
 
 Bakery is built in Python based on the following components,
 [Mustache](http://mustache.github.io/)
@@ -87,6 +87,37 @@ To list articles within a specific directory we would do this.
     {{#site.articles.another.list}}
       * [{{title}}]({{url}})
     {{/site.articles.another.list}}
+
+Pagination of articles is available through the `pager` key. Pagination
+is only supported for all articles that is within the same directory.
+
+If we have a list of employees at `/about/employees/` and want to paginate
+through them we could use something like this in our page located within
+the employee directory.
+
+	{{#pager}}
+	Page {{pager.page}} of {{pager.total_pages}}
+	{{/pager}}
+
+	{{#pager.previous_page_path}}
+	[Previous]({{pager.previous_page_path}})
+	{{/pager.previous_page_path}}
+	{{#pager.next_page_path}}
+	[Next]({{pager.next_page_path}})
+	{{/pager.next_page_path}}
+
+Pager adds the following keys.
+
+| key                      |
+| ------------------------ |
+| pager.total_articles     |
+| pager.total_pages        |
+| pager.page               |
+| pager.articles           |
+| pager.previous_page      |
+| pager.previous_page_path |
+| pager.next_page          |
+| pager.next_page_path     |
 
 
 ### Layouts

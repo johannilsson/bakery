@@ -4,7 +4,7 @@
 from __future__ import with_statement
 
 __author__ = 'Johan Nilsson'
-__version__ = '0.2.dev'
+__version__ = '0.3.dev'
 __license__ = 'MIT'
 
 import sys
@@ -24,6 +24,8 @@ import socket
 import filecmp
 import typogrify
 import Image
+import math
+import copy
 from unicodedata import normalize
 from functools import partial
 
@@ -170,6 +172,7 @@ class PageResource(Resource):
         self.context = context
         self.id = hashlib.md5(self.source).hexdigest()
         self.layout_path = u'default.html'
+        self.pager = None
 
         l = Loader(source=config.source_dir)
         content, context = l.load(self.source)
@@ -183,6 +186,9 @@ class PageResource(Resource):
     def layout(self):
         return self.config.source_dir + os.sep + self.config.paths['layouts'] + os.sep + self.layout_path
 
+    def __repr__(self):
+        return '<PageResource {0}>'.format(self.title)
+
     @property
     def title(self):
         return self.context.get('title', '')
@@ -190,6 +196,9 @@ class PageResource(Resource):
     def build(self, renderer, context):
         """ Build this resource using the passed renderer and optional context.
         """
+        if self.pager is not None:
+            self.context.update({u'pager': self.pager.to_dict()})
+
         dst = self.config.build_dir + os.sep + self.destination
         dst_dir = os.path.dirname(dst)
         if not os.path.exists(dst_dir):
@@ -218,12 +227,15 @@ class PageResource(Resource):
 class MediaResource(Resource):
     """ A media resource
 
-    This is a special type of resouce that group images into collections based
+    This is a special type of resource that group images into collections based
     on the directory they placed in.
     """
     def __init__(self, config, source):
         super(MediaResource, self).__init__(config, source)
         self.source = self.source.replace(self.config.source_dir, '')
+
+    def __repr__(self):
+        return '<MediaResource {0}>'.format(self.source)
 
     def get_image_url(self, size_name):
         root, ext = os.path.splitext(self.destination)
@@ -298,6 +310,96 @@ class ResourceTree(dict):
         return l
 
 
+class Pager(object):
+    """
+    Page the provided list of resources.
+    """
+    def __init__(self, page, all_resources, per_page):
+        self.page = page
+        self.per_page = per_page
+        self.total_pages = self.total_pages(all_resources, self.per_page)
+
+        start_index = 0
+        if self.total_pages > 0:
+            start_index = (self.per_page * (self.page - 1))
+
+        stop_index = self.page * self.per_page
+        if self.page == self.total_pages:
+            stop_index = len(all_resources)
+
+        self.belongs_to, path_tail = os.path.split(all_resources[0].destination)
+        self.belongs_to += '/' if not self.belongs_to.endswith('/') else ''
+
+        self.total_articles = len(all_resources)
+        self.articles = all_resources[start_index:stop_index]
+        self.previous_page = self.page - 1 if self.page != 1 else None
+        self.previous_page_path = self.path(self.previous_page)
+        self.next_page = self.page + 1 if self.page != self.total_pages else None
+        self.next_page_path = self.path(self.next_page)
+
+    def __repr__(self):
+        return '<Page %s of %s>' % (self.page, self.total_pages)
+
+    def to_dict(self):
+        return {
+            'total_articles': self.total_articles,
+            'total_pages': self.total_pages,
+            'page': self.page,
+            'articles': self.articles,
+            'previous_page': self.previous_page,
+            'previous_page_path': self.previous_page_path,
+            'next_page': self.next_page,
+            'next_page_path': self.next_page_path
+        }
+
+    def path(self, page):
+        if page is None or page < 1:
+            return None
+        if page == 1:
+            return self.belongs_to
+        return u'{0}page-{1}'.format(self.belongs_to, page)
+
+    @staticmethod
+    def total_pages(all_articles, per_page):
+        """
+        Calculate total number of pages.
+        """
+        return int(math.ceil(float(len(all_articles)) / float(per_page)))
+
+
+class Paginator(object):
+    def __init__(self, site):
+        self.site = site
+
+    def paginate(self, resource_tree):
+        # TODO: Add paginator for all
+        self.build(resource_tree)
+
+    def build(self, resource_tree):
+        for k, v in resource_tree.iteritems():
+            if k == u'list':
+                per_page = 10  # TODO: Make configurable.
+                num_pages = Pager.total_pages(v, per_page)
+
+                for p in v:
+                    if p.destination.endswith('index.html'):
+                        for page_num in range(1, num_pages + 1):
+                            pager = Pager(page_num, v, per_page)
+                            if page_num > 1:
+                                # Create new destination
+                                p_copy = copy.deepcopy(p)
+                                p_copy.pager = pager
+                                # TODO: Centralize or configure constructions of page urls.
+                                path_head, path_tail = os.path.split(p_copy.source)
+                                p_copy.source = path_head + u'/page-{0}/'.format(page_num) + path_tail
+                                self.site.resources.append(p_copy)
+                            else:
+                                p.pager = pager
+
+            if isinstance(v, dict):
+                self.build(v)
+
+
 class Site(object):
     """ Represent a Site to be built.
     """
@@ -361,6 +463,9 @@ class Site(object):
 
         self.articles.sort(key=lambda r: len(r.destination))
         self.context['articles'] = ResourceTree(self.articles)
+
+        paginator = Paginator(self)
+        paginator.paginate(self.context['articles'])
 
         # TODO: Do these things in the loop above instead...
         for root, dirs, files in os.walk(
@@ -561,6 +666,7 @@ def serve(config_path, port=8000, **config):
     _stdout('Type control-c to exit\n')
 
     c.source_dir = os.path.abspath(c.source_dir)
+    c.build_dir = os.path.abspath(c.build_dir)
     mkdir_p(c.build_dir)
 
     import SimpleHTTPServer
