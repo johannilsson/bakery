@@ -3,5 +3,6 @@ PIL==1.1.7
 PyYAML==3.10
 dictshield==0.4.4
 pystache==0.5.2
+smartypants==1.6.0.3
 wsgiref==0.1.2
 yuicompressor==2.4.7
