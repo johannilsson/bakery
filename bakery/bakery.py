@@ -95,6 +95,7 @@ class Config(object):
         self.source_dir = c.get('source_dir', None)
         self.build_dir = c.get('build_dir', None)
         self.production = c.get('production', False)
+        self.pager = c.get('pager', {'per_page': 10})
 
         self.site_context.update({'production': self.production})
 
@@ -378,7 +379,7 @@ class Paginator(object):
     def build(self, resource_tree):
         for k, v in resource_tree.iteritems():
             if k == u'list':
-                per_page = 10  # TODO: Make configurable.
+                per_page = self.site.config.pager.get('per_page')
                 num_pages = Pager.total_pages(v, per_page)
 
                 for p in v:

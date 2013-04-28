@@ -106,6 +106,12 @@ the employee directory.
 	[Next]({{pager.next_page_path}})
 	{{/pager.next_page_path}}
 
+Configuration of pages is added to config.yaml, if not present per_page defaults
+to 10.
+
+	pager:
+  	  per_page: 20
+
 Pager adds the following keys.
 
 | key                      |
