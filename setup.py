@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='bakery',
-      version='0.3-dev',
+      version='0.4-dev',
       description='Another static site generator',
       url='http://github.com/johannilsson/bakery',
       author='Johan Nilsson',

@@ -4,7 +4,7 @@
 from __future__ import with_statement
 
 __author__ = 'Johan Nilsson'
-__version__ = '0.3.dev'
+__version__ = '0.4.dev'
 __license__ = 'MIT'
 
 import sys
