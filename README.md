@@ -1,18 +1,11 @@
 # Bakery
 
-## A "Lightweight & Hackable" static site generator &#8211; in other words yet another static site generator.
+## A "Lightweight & Hackable" static site generator
 
-Bakery tries to make it a little bit easier to create web sites by applying
-a few tricks.
+Bakery tries to make it a little bit easier to create web sites by applying a few tricks.
 
-Bakery is built in Python based on the following components,
-[Mustache](http://mustache.github.io/)
-for templates,
-[Markdown](http://daringfireball.net/projects/markdown/syntax) for text,
-[Typogrify](https://github.com/mintchaos/typogrify) for typography,
-[YUI Compressor](http://yui.github.io/yuicompressor/) for CSS and
-JavaScript compression. [PIL](http://www.pythonware.com/products/pil/) for image manipulation. [YAML](http://www.yaml.org/) for configuration.
-
+Bakery is built in Python based on the following components, [Mustache](http://mustache.github.io/)
+for templates, [Markdown](http://daringfireball.net/projects/markdown/syntax) for text, [Typogrify](https://github.com/mintchaos/typogrify) for typography, [YUI Compressor](http://yui.github.io/yuicompressor/) for CSS and JavaScript compression. [PIL](http://www.pythonware.com/products/pil/) for image manipulation. [YAML](http://www.yaml.org/) for configuration.
 
 ## Typography
 
@@ -24,8 +17,7 @@ The following transformations is automatically applied.
 * Two dashes `--` into &#8212;
 * Three dashes `---` into &#8211;
 
-Widows is prevented using Widon't by applying a `&nbsp;` between the
-two last words in common tags.
+Widows is prevented using Widon't by applying a `&nbsp;` between the two last words in common tags.
 
 All typography filters are provided through Typogrify which also adds
 the following CSS hooks for additional styling.
@@ -44,11 +36,11 @@ can be divided into pages, layouts, assets and media.
 
 A page can either be an Article or a HTML document.
 
-Articles are identified by their `.md` extension. A HTML page is
-identified by it's `.html` extension. Articles are processed with
+Articles are identified by the `.md` extension. A HTML page is
+identified by the `.html` extension. Articles are processed with
 Markdown, HTML pages are not.
 
-A page usually starts with a YAML frontmatter which is defined at the
+A page can start with a YAML frontmatter which is defined at the
 top by three leading dashes and ends likewise. Any data defined here is
 passed to the page when rendered.
 
@@ -56,7 +48,6 @@ Example page
 
     ---
     title: A Page
-    layout: default.html
     mylist:
       - name: item1
       - name: item2
@@ -88,12 +79,40 @@ To list articles within a specific directory we would do this.
       * [{{title}}]({{url}})
     {{/site.articles.another.list}}
 
-Pagination of articles is available through the `pager` key. Pagination
-is only supported for all articles that is within the same directory.
+#### Pagination
 
-If we have a list of employees at `/about/employees/` and want to paginate
-through them we could use something like this in our page located within
-the employee directory.
+Page resources can be paginated based on a configuration. When a pattern match a set of resources the `pager` key will be injected into the root resource.
+
+The following configuration will add pagination to of all posts that is placed in the directory posts.
+
+    pagination:
+      # The name of this pagination.
+      posts:
+        # Pattern to match, will collect all resources ending with .html in the
+        # the posts directory and it sub-directories. Pattern matches against the
+        # destination name and not the source name.
+        pattern: /posts/*.html
+        # Number of resources per page, default 20 if not specified.
+        per_page: 10
+        # Url for paging, must no match a resource name, '{0}' is where the page
+        # number will be injected. Defaults to page-{0} if not specified.
+        url: sida-{0}
+
+We could also add pagination within the posts directory for better structure of the site. Name of the pagination - posts, dogs, cats in this example is not part of the matching rule. Pagination can be added to all parts of the site in a similar way. The following example will add pagination of all index files within the posts, dogs and cats directories.
+
+    pagination:
+      posts:
+        pattern: /posts/*index.html
+      dogs:
+        pattern: /posts/dogs*index.html
+      cats:
+        pattern: /posts/cats*index.html
+
+To paginate through our posts we would do this in our page located within the posts directory.
+
+    {{#pager.resources}}
+      * [{{title}}]({{url}})
+    {{/pager.resources}}
 
 	{{#pager}}
 	Page {{pager.page}} of {{pager.total_pages}}
@@ -106,20 +125,15 @@ the employee directory.
 	[Next]({{pager.next_page_path}})
 	{{/pager.next_page_path}}
 
-Configuration of pages is added to config.yaml, if not present per_page defaults
-to 10.
-
-	pager:
-  	  per_page: 20
 
 Pager adds the following keys.
 
 | key                      |
 | ------------------------ |
-| pager.total_articles     |
+| pager.total_resources    |
 | pager.total_pages        |
 | pager.page               |
-| pager.articles           |
+| pager.resources          |
 | pager.previous_page      |
 | pager.previous_page_path |
 | pager.next_page          |
@@ -128,12 +142,26 @@ Pager adds the following keys.
 
 ### Layouts
 
-Layouts is usually used to wrap pages in various way. Pages can define
-which layout it want to wrapped in by specifying a `layout` in the page
-frontmatter, if no layout is specified `default.html` is assumed.
+Layouts can be used to wrap pages in various way. A Page can define which layout it want to wrapped with if no layout is specified, `default.html` is assumed.
 
-The most common is to define a layout that holds the common structure of
-the site. A simple version of such a layout could look like this.
+To setup a Page with a alternative layout for a page we would use the layout keyword like this.
+
+    ---
+    title: A Page
+    layout: mylayout.html
+    mylist:
+      - name: item1
+      - name: item2
+    ---
+    # {{title}}
+
+    We can render mylist from the yaml frontmatter like this.
+
+    {{#mylist}}
+      * {{name}}
+    {{/mylist}}
+
+A common usage of layouts is to define a layout that holds the common structure of the site. A simple version of such a layout could look like this.
 
 	<!doctype html>
 	<html>
@@ -159,10 +187,8 @@ This will fetch the partial `fragment.html` from layouts which is normal HTML.
 
 ## Media
 
-Media simplifies working with images.
-
-This means automatic image scaling and categorization based on which directory
-they're placed in.
+Adds automatic image scaling and categorization based on the directory the
+image is placed in.
 
 To enable scaling of images add the following to `config.yaml`.
 
@@ -242,9 +268,15 @@ Steps needed to create a new site, to be simplified.
 
 	mkdir example.com
 	cd example.com
-	mkdir source
+	mkdir site
+	# Create a config.
 	vim config.yaml
 	bakery --bootstrap
+	# Create a layout
+	vim site/layouts/default.html
+	# Create a root page.
+	vim site/pages/index.html
+	# Start the built in server
 	bakery --serve
 
 Cheers!<br>
