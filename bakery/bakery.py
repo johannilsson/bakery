@@ -95,7 +95,7 @@ class Config(object):
         self.source_dir = c.get('source_dir', None)
         self.build_dir = c.get('build_dir', None)
         self.production = c.get('production', False)
-        self.pager = c.get('pager', {'per_page': 10})
+        self.pagination = c.get('pagination', {})
 
         self.site_context.update({'production': self.production})
 
@@ -315,9 +315,10 @@ class Pager(object):
     """
     Page the provided list of resources.
     """
-    def __init__(self, page, all_resources, per_page):
+    def __init__(self, page, all_resources, config):
         self.page = page
-        self.per_page = per_page
+        self.config = config
+        self.per_page = config.get('per_page', 20)
         self.total_pages = self.total_pages(all_resources, self.per_page)
 
         start_index = 0
@@ -331,8 +332,8 @@ class Pager(object):
         self.belongs_to, path_tail = os.path.split(all_resources[0].destination)
         self.belongs_to += '/' if not self.belongs_to.endswith('/') else ''
 
-        self.total_articles = len(all_resources)
-        self.articles = all_resources[start_index:stop_index]
+        self.total_resources = len(all_resources)
+        self.resources = all_resources[start_index:stop_index]
         self.previous_page = self.page - 1 if self.page != 1 else None
         self.previous_page_path = self.path(self.previous_page)
         self.next_page = self.page + 1 if self.page != self.total_pages else None
@@ -343,62 +344,65 @@ class Pager(object):
 
     def to_dict(self):
         return {
-            'total_articles': self.total_articles,
+            'total_resources': self.total_resources,
             'total_pages': self.total_pages,
             'page': self.page,
-            'articles': self.articles,
+            'resources': self.resources,
             'previous_page': self.previous_page,
             'previous_page_path': self.previous_page_path,
             'next_page': self.next_page,
             'next_page_path': self.next_page_path
         }
 
+    def pageurl(self, page):
+        path = self.config.get('url', 'page-{0}')
+        return path.format(page)
+
     def path(self, page):
         if page is None or page < 1:
             return None
         if page == 1:
             return self.belongs_to
-        return u'{0}page-{1}'.format(self.belongs_to, page)
+        return self.belongs_to + self.pageurl(page)
 
     @staticmethod
-    def total_pages(all_articles, per_page):
+    def total_pages(all_resources, per_page):
         """
         Calculate total number of pages.
         """
-        return int(math.ceil(float(len(all_articles)) / float(per_page)))
+        return int(math.ceil(float(len(all_resources)) / float(per_page)))
 
 
 class Paginator(object):
     def __init__(self, site):
         self.site = site
 
-    def paginate(self, resource_tree):
-        # TODO: Add paginator for all
-        self.build(resource_tree)
+    def paginate(self, config):
+        name, c = config
+        to_paginate = [r for r in self.site.resources if fnmatch.fnmatch(
+            r.destination,
+            c.get('pattern')
+        )]
+        self._paginate(to_paginate, config)
 
-    def build(self, resource_tree):
-        for k, v in resource_tree.iteritems():
-            if k == u'list':
-                per_page = self.site.config.pager.get('per_page')
-                num_pages = Pager.total_pages(v, per_page)
-
-                for p in v:
-                    if p.destination.endswith('index.html'):
-                        for page_num in range(1, num_pages + 1):
-                            pager = Pager(page_num, v, per_page)
-                            if page_num > 1:
-                                # Create new destination
-                                p_copy = copy.deepcopy(p)
-                                p_copy.pager = pager
-                                # TODO: Centralize or configure constructions of page urls.
-                                path_head, path_tail = os.path.split(p_copy.source)
-                                p_copy.source = path_head + u'/page-{0}/'.format(page_num) + path_tail
-                                self.site.resources.append(p_copy)
-                            else:
-                                p.pager = pager
-
-            if isinstance(v, dict):
-                self.build(v)
+    def _paginate(self, resources, config):
+        name, c = config
+        per_page = c.get('per_page', 20)
+        num_pages = Pager.total_pages(resources, per_page)
+        for idx, r in enumerate(resources):
+            #if r.destination.endswith('index.html'):
+            if idx == 0:
+                for page_num in range(1, num_pages + 1):
+                    pager = Pager(page_num, resources, c)
+                    if page_num > 1:
+                        # Create new destination
+                        r_copy = copy.deepcopy(r)
+                        r_copy.pager = pager
+                        path_head, path_tail = os.path.split(r_copy.source)
+                        r_copy.source = path_head + u'/' + pager.pageurl(page_num) + u'/' + path_tail
+                        self.site.resources.append(r_copy)
+                    else:
+                        r.pager = pager
 
 
 class Site(object):
@@ -461,13 +465,6 @@ class Site(object):
                     r = self._new_resource(os.path.join(root, f))
                     if r:
                         self.resources.append(r)
-
-        self.articles.sort(key=lambda r: len(r.destination))
-        self.context['articles'] = ResourceTree(self.articles)
-
-        paginator = Paginator(self)
-        paginator.paginate(self.context['articles'])
-
         # TODO: Do these things in the loop above instead...
         for root, dirs, files in os.walk(
                 os.path.join(self.config.source_dir,
@@ -476,6 +473,13 @@ class Site(object):
             for f in files:
                 m = MediaResource(self.config, os.path.join(root, f))
                 self.media.append(m)
+
+        self.articles.sort(key=lambda r: len(r.destination))
+        self.context['articles'] = ResourceTree(self.articles)
+
+        paginator = Paginator(self)
+        for c in self.config.pagination.items():
+            paginator.paginate(c)
 
     def _build_media(self):
         failed = []
