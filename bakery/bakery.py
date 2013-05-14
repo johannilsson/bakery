@@ -663,14 +663,16 @@ def build(config_path, **config):
 
 def serve(config_path, port=8000, **config):
     c = Config(config_path, **config)
-    site = Site(c)
-    site.build()
 
     _stdout('Running webserver at 0.0.0.0:%s for %s\n' % (port, c.build_dir))
     _stdout('Type control-c to exit\n')
 
     c.source_dir = os.path.abspath(c.source_dir)
     c.build_dir = os.path.abspath(c.build_dir)
+
+    site = Site(c)
+    site.build()
+
     mkdir_p(c.build_dir)
 
     import SimpleHTTPServer
