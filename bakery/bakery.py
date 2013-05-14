@@ -68,7 +68,6 @@ def slugify(text, delim=u'-'):
 class Config(object):
     """ Configuration for the site to build. """
     paths = {
-        'articles': u'articles',
         'assets': u'assets',
         'layouts': u'layouts',
         'media': u'media',
