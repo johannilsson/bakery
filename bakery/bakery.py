@@ -232,7 +232,7 @@ class MediaResource(Resource):
     """
     def __init__(self, config, source):
         super(MediaResource, self).__init__(config, source)
-        self.source = self.source.replace(self.config.source_dir, '')
+        self.source = self.source.replace(self.config.source_dir, '', 1)
 
     def __repr__(self):
         return '<MediaResource {0}>'.format(self.source)
@@ -430,7 +430,7 @@ class Site(object):
     def _new_resource(self, path):
         """ Internal factory for creating a resource from path.
         """
-        source_path = path.replace(self.config.source_dir, '')
+        source_path = path.replace(self.config.source_dir, '', 1)
         if source_path.startswith(u'/_') or source_path.startswith(u'_'):
             return None
         if source_path.endswith('.md'):
@@ -512,7 +512,7 @@ class Site(object):
             files[:] = [f for f in files if not f.startswith('.')]
             for f in files:
                 srcname = os.path.join(root, f)
-                dstname = srcname.replace(self.config.source_dir, self.config.build_dir)
+                dstname = srcname.replace(self.config.source_dir, self.config.build_dir, 1)
                 # Copy file if does not exists in build dir or if it has changed.
                 if not os.path.exists(dstname) or os.path.exists(dstname) and os.stat(srcname).st_mtime != os.stat(dstname).st_mtime:
                     shutil.copy2(srcname, dstname)
@@ -520,7 +520,7 @@ class Site(object):
 
         # Compare the asset directory with source to build and remove files
         # and directories that does not match.
-        # Adapt this be a more generic comparssion so we can diff all
+        # Adapt this be a more generic comparison so we can diff all
         # resources.
         asset_dir = os.path.join(self.config.build_dir, self.config.paths['assets'])
         for root, dirs, files in os.walk(asset_dir, topdown=True):
