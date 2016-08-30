@@ -65,6 +65,10 @@ def slugify(text, delim=u'-'):
     return unicode(delim.join(result))
 
 
+class TemplateView(pystache.TemplateSpec):
+    pass
+
+
 class Config(object):
     """ Configuration for the site to build. """
     paths = {
@@ -213,14 +217,21 @@ class PageResource(Resource):
     url = destination
 
     def render(self, renderer, site_context):
-        part = renderer.render(self.content, self.context, site=site_context)
+        view = TemplateView()
+        view.template = self.content
+        #part = renderer.render(self.content, self.context, site=site_context)
+        part = renderer.render(view, self.context, site=site_context)
         part = markdown.markdown(part)
         part = typogrify.typogrify(part)
 
         page_context = {u'content': part}
         page_context.update(self.context)
 
-        page = renderer.render_path(self.layout, self.context, page=page_context, site=site_context)
+        view = TemplateView()
+        view.template_rel_path = self.layout
+
+        #page = renderer.render_path(self.layout, self.context, page=page_context, site=site_context)
+        page = renderer.render(view, self.context, page=page_context, site=site_context)
         return page
 
 
@@ -664,9 +675,6 @@ def build(config_path, **config):
 def serve(config_path, port=8000, **config):
     c = Config(config_path, **config)
 
-    _stdout('Running webserver at 0.0.0.0:%s for %s\n' % (port, c.build_dir))
-    _stdout('Type control-c to exit\n')
-
     c.source_dir = os.path.abspath(c.source_dir)
     c.build_dir = os.path.abspath(c.build_dir)
 
@@ -704,6 +712,9 @@ def serve(config_path, port=8000, **config):
 
     # Run server from our build directory.
     os.chdir(c.build_dir)
+
+    _stdout('Running webserver at 0.0.0.0:%s for %s\n' % (port, c.build_dir))
+    _stdout('Type control-c to exit\n')
 
     try:
         server.serve_forever()
