@@ -169,7 +169,7 @@ def smartypants(text):
     except ImportError:
         return text
     else:
-        output = smartypants.smartyPants(text)
+        output = smartypants.smartypants(text)
         return output
 
 def widont(text):
