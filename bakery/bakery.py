@@ -616,7 +616,7 @@ class Site(object):
         for r in self.resources:
             if r.should_build():
                 _stdout('>> {0}\n'.format(r.destination))
-            r.build()
+                r.build()
 
     def find_resource(self, resource_id):
         """ Return an instance based on the id.
