@@ -544,6 +544,10 @@ class Site(object):
         copying of assets.
         """
         modified_files = []
+
+        # Create assets directory
+        mkdir_p(os.path.join(self.config.build_dir, self.config.paths['assets']))
+
         for root, dirs, files in os.walk(
                 os.path.join(self.config.source_dir,
                              self.config.paths['assets']), topdown=True):
@@ -553,13 +557,15 @@ class Site(object):
                 if not os.path.exists(dst):
                     mkdir_p(dst)
                     shutil.copystat(src, dst)
-            # Ingore files starting with dot.
+            # Ignore files starting with dot.
             files[:] = [f for f in files if not f.startswith('.')]
             for f in files:
                 srcname = os.path.join(root, f)
                 dstname = srcname.replace(self.config.source_dir, self.config.build_dir, 1)
                 # Copy file if does not exists in build dir or if it has changed.
-                if not os.path.exists(dstname) or os.path.exists(dstname) and os.stat(srcname).st_mtime != os.stat(dstname).st_mtime:
+                if not os.path.exists(dstname) \
+                        or os.path.exists(dstname) \
+                        and os.stat(srcname).st_mtime != os.stat(dstname).st_mtime:
                     shutil.copy2(srcname, dstname)
                     modified_files.append(dstname)
 
