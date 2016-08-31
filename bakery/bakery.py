@@ -456,13 +456,10 @@ class Site(object):
 
     def __init__(self, config):
         self.config = config
-        self.resources = []
-        self.context = {}
-        self.articles = []
-        self.media = []
-
-        if self.config.site_context:
-            self.context.update(self.config.site_context)
+        self.resources = list()
+        self.context = self.config.site_context if self.config.site_context else dict()
+        self.articles = list()
+        self.media = list()
 
         self.renderer = pystache.Renderer(
             search_dirs=[
@@ -608,10 +605,10 @@ class Site(object):
         """
         _stdout('** Building site\n')
         # We start fresh on each build.
-        self.context = {}
-        self.resources = []
-        self.articles = []
-        self.media = []
+        self.context = self.config.site_context if self.config.site_context else dict()
+        self.resources = list()
+        self.articles = list()
+        self.media = list()
 
         if not os.path.exists(self.config.build_dir):
             mkdir_p(self.config.build_dir)
