@@ -176,28 +176,55 @@ class PageResource(Resource):
         self.context = context
         self.id = hashlib.md5(self.source).hexdigest()
         self.layout_path = u'default.html'
+        self.page_layout_path = None
         self.pager = None
+        self.content = None
+        self.rendered_content = None
+        self.rendered_page = None
 
         l = Loader(source=config.source_dir)
         content, context = l.load(self.source)
         self.context.update(context)
-        self.content = content
+        self.page_content = content
 
         if 'layout' in self.context:
             self.layout_path = self.context['layout']
+        if 'page_layout' in self.context:
+            self.page_layout_path = self.context['page_layout']
 
-    @property
-    def layout(self):
-        return self.config.source_dir + os.sep + self.config.paths['layouts'] + os.sep + self.layout_path
+    def __getattr__(self, key):
+        """
+        Adds dynamic access of context attributes.
+        """
+        return self.context.get(key, '')
 
     def __repr__(self):
         return '<PageResource {0}>'.format(self.title)
 
     @property
+    def layout(self):
+        return self.config.source_dir + os.sep + self.config.paths['layouts'] + os.sep + self.layout_path
+
+    @property
+    def page_layout(self):
+        return self.config.source_dir + os.sep + self.config.paths['layouts'] + os.sep + self.page_layout_path
+
+    @property
     def title(self):
         return self.context.get('title', '')
 
-    def build(self, renderer, context):
+    @property
+    def destination(self):
+        root, ext = os.path.splitext(self._clean_source())
+        return root + u'.html'
+    url = destination
+
+    def should_build(self):
+        """ Check if this resource should be built out to a html doc.
+        """
+        return self.context.get('build', True)
+
+    def build(self):
         """ Build this resource using the passed renderer and optional context.
         """
         if self.pager is not None:
@@ -208,31 +235,26 @@ class PageResource(Resource):
         if not os.path.exists(dst_dir):
             mkdir_p(dst_dir)
         with codecs.open(dst, 'w', encoding='utf-8') as f:
-            f.write(self.render(renderer, context))
-
-    @property
-    def destination(self):
-        root, ext = os.path.splitext(self._clean_source())
-        return root + u'.html'
-    url = destination
+            f.write(self.rendered_page)
 
     def render(self, renderer, site_context):
         view = TemplateView()
-        view.template = self.content
-        #part = renderer.render(self.content, self.context, site=site_context)
+        if self.page_layout_path:
+            view.template_rel_path = self.page_layout
+        else:
+            view.template = self.page_content
         part = renderer.render(view, self.context, site=site_context)
         part = markdown.markdown(part)
         part = typogrify.typogrify(part)
-
         page_context = {u'content': part}
+        self.rendered_content = part
         page_context.update(self.context)
 
         view = TemplateView()
         view.template_rel_path = self.layout
 
-        #page = renderer.render_path(self.layout, self.context, page=page_context, site=site_context)
         page = renderer.render(view, self.context, page=page_context, site=site_context)
-        return page
+        self.rendered_page = page
 
 
 class MediaResource(Resource):
@@ -474,7 +496,8 @@ class Site(object):
                 for f in fnmatch.filter(files, pat):
                     r = self._new_resource(os.path.join(root, f))
                     if r:
-                        self.resources.append(r)
+                        # Add resources on the top, this forces childs to be rendered before their parents.
+                        self.resources.insert(0, r)
         # TODO: Do these things in the loop above instead...
         for root, dirs, files in os.walk(
                 os.path.join(self.config.source_dir,
@@ -584,10 +607,16 @@ class Site(object):
         self._build_media()
         self._build_static()
 
-        _stdout('** Building resources\n')
+        _stdout('** Render resources\n')
         for r in self.resources:
             _stdout('>> {0}\n'.format(r.destination))
-            r.build(self.renderer, self.context)
+            r.render(self.renderer, self.context)
+
+        _stdout('** Building resources\n')
+        for r in self.resources:
+            if r.should_build():
+                _stdout('>> {0}\n'.format(r.destination))
+            r.build()
 
     def find_resource(self, resource_id):
         """ Return an instance based on the id.
