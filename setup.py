@@ -9,16 +9,16 @@ setup(name='bakery',
       license='MIT',
       packages=['bakery'],
       install_requires=[
-        'Markdown',
-        'PIL',
-        'PyYAML',
-        'pystache',
-        'smartypants',
-        'yuicompressor'
+          'Markdown',
+          'PIL',
+          'PyYAML',
+          'pystache',
+          'smartypants',
+          'yuicompressor'
       ],
       zip_safe=False,
-      entry_points = {
-         'console_scripts': ['bakery=bakery.bakery:main'],
+      entry_points={
+          'console_scripts': ['bakery=bakery.bakery:main'],
       }
 )
 
