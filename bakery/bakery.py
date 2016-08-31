@@ -297,9 +297,22 @@ class MediaResource(Resource):
                 return False
         return True
 
+    def build_original(self):
+        """ Build this resource with the original media.
+        """
+        src = os.sep.join([self.config.source_dir, self.source])
+        dst = os.sep.join([self.config.build_dir, self.destination])
+        dst_dir = os.path.dirname(dst)
+        if not os.path.isdir(dst_dir):
+            mkdir_p(dst_dir)
+        shutil.copy2(src, dst)
+        return True
+
     def build(self):
         """ Build this resource.
         """
+        if 'image' not in self.config.media:
+            return self.build_original()
         for size_name, sizes in self.config.media['image'].items():
             if not self.create_image(size_name, sizes):
                 return False
