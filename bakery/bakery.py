@@ -243,6 +243,7 @@ class PageResource(Resource):
             view.template_rel_path = self.page_layout
         else:
             view.template = self.page_content
+
         part = renderer.render(view, self.context, site=site_context)
         part = markdown.markdown(part)
         part = typogrify.typogrify(part)
