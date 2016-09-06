@@ -57,6 +57,8 @@ _punct_re = re.compile(r'[\t !"#$%&\'()*\-<=>?@\[\\\]^_`{|},.]+')
 
 def slugify(text, delim=u'-'):
     """Generates an slightly worse ASCII-only slug."""
+    if type(text) == str:
+        text = unicode(text)
     result = []
     for word in _punct_re.split(text.lower()):
         word = normalize('NFKD', word).encode('ascii', 'ignore')
@@ -165,6 +167,10 @@ class Resource(object):
             parent = None
         return parent
 
+    @property
+    def order(self):
+        return self.destination
+
 
 class PageResource(Resource):
     def __init__(self, config, source, context=None):
@@ -184,6 +190,7 @@ class PageResource(Resource):
 
         l = Loader(source=config.source_dir)
         content, context = l.load(self.source)
+
         self.context.update(context)
         self.page_content = content
 
@@ -191,15 +198,15 @@ class PageResource(Resource):
             self.layout_path = self.context['layout']
         if 'page_layout' in self.context:
             self.page_layout_path = self.context['page_layout']
-
-    def __getattr__(self, key):
-        """
-        Adds dynamic access of context attributes.
-        """
-        return self.context.get(key, '')
+        if 'title_slug' not in self.context:
+            self.context['title_slug'] = slugify(self.title, delim=u'-')
 
     def __repr__(self):
         return '<PageResource {0}>'.format(self.title)
+
+    def is_markdown(self):
+        ext = os.path.splitext(self.source)[1]
+        return ext == '.md'
 
     @property
     def layout(self):
@@ -211,13 +218,19 @@ class PageResource(Resource):
 
     @property
     def title(self):
-        return self.context.get('title', '')
+        return self.context.get('title', u'')
 
     @property
     def destination(self):
         root, ext = os.path.splitext(self._clean_source())
         return root + u'.html'
     url = destination
+
+    @property
+    def order(self):
+        if 'order' in self.context:
+            return self.context.get('order')
+        return self.destination
 
     def should_build(self):
         """ Check if this resource should be built out to a html doc.
@@ -245,8 +258,10 @@ class PageResource(Resource):
             view.template = self.page_content
 
         part = renderer.render(view, self.context, site=site_context)
-        part = markdown.markdown(part)
-        part = typogrify.typogrify(part)
+        if self.is_markdown():
+            part = markdown.markdown(part)
+            part = typogrify.typogrify(part)
+
         page_context = {u'content': part}
         self.rendered_content = part
         page_context.update(self.context)
@@ -339,13 +354,13 @@ class ResourceTree(dict):
                 # This key handling... must be able to simplify...
                 tree[child.belongs_to][u'list'] = sorted(
                     tree[child.belongs_to][u'list'],
-                    key=lambda r: r.destination,
-                    reverse=True)
+                    key=lambda r: r.order,
+                    reverse=False)
             self.build(tree[child.belongs_to], child, nodes)
 
     def all(self):
         a = self._all(self, [])
-        return sorted(a, key=lambda r: r.destination, reverse=True)
+        return sorted(a, key=lambda r: r.order, reverse=False)
 
     def _all(self, d, l):
         for k, v in d.iteritems():
