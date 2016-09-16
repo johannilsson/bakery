@@ -23,7 +23,6 @@ import time
 import socket
 import filecmp
 import typogrify
-import Image
 import math
 import copy
 from unicodedata import normalize
@@ -292,6 +291,11 @@ class MediaResource(Resource):
         return path 
 
     def create_image(self, name, size):
+        try:
+            import Image
+        except ImportError:
+            raise Exception('Image configuration requires PIL to be installed.')
+
         path = self.get_image_url(name)
         if path.startswith(os.sep):
             path = path[1:]
